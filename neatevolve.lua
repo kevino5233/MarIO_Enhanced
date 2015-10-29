@@ -44,6 +44,7 @@ elseif gameinfo.getromname() == "Super Mario Bros." then
 	}
 end
 
+--Turns graphics on or off
 function ToggleGraphics(GraphicsOn)
     snes.setlayer_bg_1(GraphicsOn)
     snes.setlayer_bg_2(GraphicsOn)
@@ -82,6 +83,8 @@ TimeoutConstant = 20
 
 MaxNodes = 1000000
 
+--sets values for where mario is in world space
+--and relative to the screen
 function getPositions()
 	if gameinfo.getromname() == "Super Mario World (USA)" then
 		marioX = memory.read_s16_le(0x94)
@@ -100,12 +103,14 @@ function getPositions()
 		screenY = memory.readbyte(0x03B8)
 	end
 end
-
+--Gets whatever is in that tile.
 function getTile(dx, dy)
 	if gameinfo.getromname() == "Super Mario World (USA)" then
 		x = math.floor((marioX+dx+8)/16)
 		y = math.floor((marioY+dy)/16)
-		
+		--research what this memory byte is. most likely
+		--1 or 0, based on what the other branching
+		--code is.
 		return memory.readbyte(0x1C800 + math.floor(x/0x10)*0x1B0 + y*0x10 + x%0x10)
 	elseif gameinfo.getromname() == "Super Mario Bros." then
 		local x = marioX + dx + 8
@@ -127,7 +132,7 @@ function getTile(dx, dy)
 		end
 	end
 end
-
+--Gets the 12 sprites that the SNES can hold.
 function getSprites()
 	if gameinfo.getromname() == "Super Mario World (USA)" then
 		local sprites = {}
@@ -155,7 +160,8 @@ function getSprites()
 		return sprites
 	end
 end
-
+--most likely used for different versions of the game, maybe had
+--more memory. Don't worry about this for now.
 function getExtendedSprites()
 	if gameinfo.getromname() == "Super Mario World (USA)" then
 		local extended = {}
@@ -217,7 +223,7 @@ function getInputs()
 	
 	return inputs
 end
-
+--normal sigmoid implementation
 function sigmoid(x)
 	return 2/(1+math.exp(-4.9*x))-1
 end
@@ -295,7 +301,7 @@ function basicGenome()
 	
 	return genome
 end
-
+--Generates empty gene
 function newGene()
 	local gene = {}
 	gene.into = 0
@@ -306,7 +312,7 @@ function newGene()
 	
 	return gene
 end
-
+--Copies gene into another one, gene2, which has the same exact properties.
 function copyGene(gene)
 	local gene2 = newGene()
 	gene2.into = gene.into
@@ -317,7 +323,7 @@ function copyGene(gene)
 	
 	return gene2
 end
-
+--Creates empty neuron.
 function newNeuron()
 	local neuron = {}
 	neuron.incoming = {}
@@ -357,23 +363,22 @@ function generateNetwork(genome)
 	
 	genome.network = network
 end
-
 --Returns the outputs resulting from the inputs.
 --Output is formatted to get passed into SetJoystick.
 --May not have to worry about that detail too much though.
 function evaluateNetwork(network, inputs)
 	table.insert(inputs, 1)
+    --check length
 	if #inputs ~= Inputs then
 		console.writeline("Incorrect number of neural network inputs.")
 		return {}
 	end
-	
+    --set values of network
 	for i=1,Inputs do
 		network.neurons[i].value = inputs[i]
 	end
-	
-    --Passes the values of the neurons through the value and
-    --multiplies it by the weights of it's incoming neurons.
+    --Passes the values of the neurons through then network and multiplies
+    --each node by the weights of it's incoming neurons.
 	for _,neuron in pairs(network.neurons) do
 		local sum = 0
 		for j = 1,#neuron.incoming do
@@ -381,13 +386,12 @@ function evaluateNetwork(network, inputs)
 			local other = network.neurons[incoming.into]
 			sum = sum + incoming.weight * other.value
 		end
-		
         --sigmoiiiiiid
 		if #neuron.incoming > 0 then
 			neuron.value = sigmoid(sum)
 		end
 	end
-	
+    --stores the result of all the output nodes.
 	local outputs = {}
 	for o=1,Outputs do
 		local button = "P1 " .. ButtonNames[o]
@@ -397,7 +401,6 @@ function evaluateNetwork(network, inputs)
 			outputs[button] = false
 		end
 	end
-	
 	return outputs
 end
 
@@ -435,17 +438,19 @@ function crossover(g1, g2)
 	
 	return child
 end
-
 function randomNeuron(genes, nonInput)
 	local neurons = {}
+    --Add input neurons if nonInput is true
 	if not nonInput then
 		for i=1,Inputs do
 			neurons[i] = true
 		end
 	end
+    --Add output neurons
 	for o=1,Outputs do
 		neurons[MaxNodes+o] = true
 	end
+    --For each gene, add into nodes and out nodes.
 	for i=1,#genes do
 		if (not nonInput) or genes[i].into > Inputs then
 			neurons[genes[i].into] = true
@@ -454,23 +459,25 @@ function randomNeuron(genes, nonInput)
 			neurons[genes[i].out] = true
 		end
 	end
-
+    --r u fkn srs
+    --counts number of neurons added lmao
 	local count = 0
 	for _,_ in pairs(neurons) do
 		count = count + 1
 	end
+    --random index to choose from
 	local n = math.random(1, count)
-	
+    --is this really be the best way jesus	
 	for k,v in pairs(neurons) do
 		n = n-1
 		if n == 0 then
 			return k
 		end
 	end
-	
+    --return 0 if neuron not found
 	return 0
 end
-
+--Checks if link exists in genes.
 function containsLink(genes, link)
 	for i=1,#genes do
 		local gene = genes[i]
@@ -479,10 +486,11 @@ function containsLink(genes, link)
 		end
 	end
 end
-
+--mutate connection weights for genes. Why does it do it this way? idk.
 function pointMutate(genome)
+    --I don't even
 	local step = genome.mutationRates["step"]
-	
+    --some random ass function lmao
 	for i=1,#genome.genes do
 		local gene = genome.genes[i]
 		if math.random() < PerturbChance then
@@ -492,35 +500,40 @@ function pointMutate(genome)
 		end
 	end
 end
-
+--
 function linkMutate(genome, forceBias)
+    --Gets 2 random neurons, one input and one nonInput.
 	local neuron1 = randomNeuron(genome.genes, false)
 	local neuron2 = randomNeuron(genome.genes, true)
-	 
+	--Get a new gene
 	local newLink = newGene()
+    --Return if both nodes are input nodes.
 	if neuron1 <= Inputs and neuron2 <= Inputs then
-		--Both input nodes
 		return
 	end
+    --uhhhhh....lmao
+    --Make sure neuron 1 is an input neuron if necessary
 	if neuron2 <= Inputs then
-		-- Swap output and input
 		local temp = neuron1
 		neuron1 = neuron2
 		neuron2 = temp
 	end
-
+    --set into and out to links
 	newLink.into = neuron1
 	newLink.out = neuron2
+    --idk mane
 	if forceBias then
 		newLink.into = Inputs
 	end
-	
+    --return if this link already exists
 	if containsLink(genome.genes, newLink) then
 		return
 	end
+    --add another output
 	newLink.innovation = newInnovation()
+    --give this new link a random weight [-2, 2)
 	newLink.weight = math.random()*4-2
-	
+    --finally, add this new link into the gene pool
 	table.insert(genome.genes, newLink)
 end
 
@@ -550,7 +563,7 @@ function nodeMutate(genome)
 	gene2.enabled = true
 	table.insert(genome.genes, gene2)
 end
-
+--random enable or disable mutation for a gene
 function enableDisableMutate(genome, enable)
 	local candidates = {}
 	for _,gene in pairs(genome.genes) do
@@ -566,8 +579,10 @@ function enableDisableMutate(genome, enable)
 	local gene = candidates[math.random(1,#candidates)]
 	gene.enabled = not gene.enabled
 end
-
+--Mutate various features of the genome once again based on random probability.
 function mutate(genome)
+    --For each mutatable attribute, ether raise the rate by 5% or lower it by
+    --5%.
 	for mutation,rate in pairs(genome.mutationRates) do
 		if math.random(1,2) == 1 then
 			genome.mutationRates[mutation] = 0.95*rate
@@ -575,11 +590,11 @@ function mutate(genome)
 			genome.mutationRates[mutation] = 1.05263*rate
 		end
 	end
-
+    --Mutate weights of genes
 	if math.random() < genome.mutationRates["connections"] then
 		pointMutate(genome)
 	end
-	
+    --Add another link/node
 	local p = genome.mutationRates["link"]
 	while p > 0 do
 		if math.random() < p then
@@ -587,7 +602,7 @@ function mutate(genome)
 		end
 		p = p - 1
 	end
-
+    --Add another link 
 	p = genome.mutationRates["bias"]
 	while p > 0 do
 		if math.random() < p then
@@ -595,7 +610,7 @@ function mutate(genome)
 		end
 		p = p - 1
 	end
-	
+    --Add another link with forced bias
 	p = genome.mutationRates["node"]
 	while p > 0 do
 		if math.random() < p then
@@ -603,7 +618,7 @@ function mutate(genome)
 		end
 		p = p - 1
 	end
-	
+    --randomly enable mutatations for a genome
 	p = genome.mutationRates["enable"]
 	while p > 0 do
 		if math.random() < p then
@@ -611,7 +626,7 @@ function mutate(genome)
 		end
 		p = p - 1
 	end
-
+    --randomly enable mutatations for a genome
 	p = genome.mutationRates["disable"]
 	while p > 0 do
 		if math.random() < p then
@@ -728,13 +743,14 @@ end
 --the top half.
 function cullSpecies(cutToOne)
 	for s = 1,#pool.species do
+        --sort a species genomes by fitness
 		local species = pool.species[s]
-		
 		table.sort(species.genomes, function (a,b)
 			return (a.fitness > b.fitness)
 		end)
-		
+        --Leave half the species remaining.
 		local remaining = math.ceil(#species.genomes/2)
+        --if cutToOne is true, we only want one remaining.
 		if cutToOne then
 			remaining = 1
 		end
@@ -743,7 +759,8 @@ function cullSpecies(cutToOne)
 		end
 	end
 end
-
+--randomly crossover child genomes with two parents. Else just use one.
+--Also mutate the child.
 function breedChild(species)
 	local child = {}
 	if math.random() < CrossoverChance then
@@ -800,7 +817,9 @@ function removeWeakSpecies()
 
 	pool.species = survived
 end
-
+--Searches the species in the gene pool until we find one that matches the
+--child and then adds the child to that species. If the species
+--does not exist then create a new species.
 function addToSpecies(child)
 	local foundSpecies = false
 	for s=1,#pool.species do
@@ -817,12 +836,13 @@ function addToSpecies(child)
 		table.insert(pool.species, childSpecies)
 	end
 end
-
+--Begins selection process for what species to remove and creation of new
+--genoms for the next generation.
 function newGeneration()
     --gets top half of species
 	cullSpecies(false)
 	rankGlobally()
-    --wat
+    --literally wat
 	removeStaleSpecies()
 	rankGlobally()
 	for s = 1,#pool.species do
@@ -832,29 +852,32 @@ function newGeneration()
 	removeWeakSpecies()
 	local sum = totalAverageFitness()
 	local children = {}
+    --for each species, bread some number of children
 	for s = 1,#pool.species do
-        --wat
 		local species = pool.species[s]
 		breed = math.floor(species.averageFitness / sum * Population) - 1
 		for i=1,breed do
 			table.insert(children, breedChild(species))
 		end
 	end
-	cullSpecies(true) -- Cull all but the top member of each species
+    --cuts all but the top member of each species
+	cullSpecies(true)
+    --keep making children until we match the population
 	while #children + #pool.species < Population do
 		local species = pool.species[math.random(1, #pool.species)]
 		table.insert(children, breedChild(species))
 	end
+    --for each child, add to species
 	for c=1,#children do
 		local child = children[c]
 		addToSpecies(child)
 	end
-	
+    --increment generation
 	pool.generation = pool.generation + 1
-	
+    --save data
 	writeFile("backup." .. pool.generation .. "." .. forms.gettext(saveLoadFile))
 end
-	
+--creates a new pool for testing and creates a population of the same species
 function initializePool()
 	pool = newPool()
 
@@ -865,7 +888,7 @@ function initializePool()
 
 	initializeRun()
 end
-
+--sets all inputs to false
 function clearJoypad()
 	controller = {}
 	for b = 1,#ButtonNames do
@@ -873,7 +896,7 @@ function clearJoypad()
 	end
 	joypad.set(controller)
 end
-
+--loads the save state, clears inputs, and grabs a genome to start testing on
 function initializeRun()
 	savestate.load(Filename);
 	rightmost = 0
@@ -886,8 +909,7 @@ function initializeRun()
 	generateNetwork(genome)
 	evaluateCurrent()
 end
-
---Is called every 12 frames.
+--Is called every 12 frames. Gets the output of the network.
 function evaluateCurrent()
 	local species = pool.species[pool.currentSpecies]
 	local genome = species.genomes[pool.currentGenome]
@@ -906,12 +928,10 @@ function evaluateCurrent()
 
 	joypad.set(controller)
 end
-
+--r u fkn srs
 if pool == nil then
 	initializePool()
 end
-
-
 --Sets the current genome to the next one in the generation. If there are none,
 --then it moves on to the next generation.
 function nextGenome()
@@ -925,14 +945,14 @@ function nextGenome()
 		end
 	end
 end
-
+--If fitness > 0, we have already done the calculations for it.
 function fitnessAlreadyMeasured()
 	local species = pool.species[pool.currentSpecies]
 	local genome = species.genomes[pool.currentGenome]
-	
+
 	return genome.fitness ~= 0
 end
-
+--gui stuff
 function displayGenome(genome)
 	local network = genome.network
 	local cells = {}
@@ -1203,11 +1223,11 @@ while true do
 
 	local species = pool.species[pool.currentSpecies]
 	local genome = species.genomes[pool.currentGenome]
-	
+
 	if forms.ischecked(showNetwork) then
 		displayGenome(genome)
 	end
-	
+
 	if pool.currentFrame%5 == 0 then
 		evaluateCurrent()
 	end
@@ -1220,10 +1240,9 @@ while true do
 		timeout = TimeoutConstant
 	end
 	memory.writebyte(0x0019, PowerUpType_Curr)
-	
+
 	timeout = timeout - 1
-	
-	
+
 	local timeoutBonus = pool.currentFrame / 4
 	if timeout + timeoutBonus <= 0 then
 		local fitness = rightmost / (pool.currentFrame)
