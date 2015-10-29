@@ -4,7 +4,7 @@
 -- For SMW, make sure you have a save state named "DP1.state" at the beginning of a level,
 -- and put a copy in both the Lua folder and the root directory of BizHawk.
 --
--- Enhanced MarI/O by Kevin Sun and Lio Vansteenskie
+-- Enhanced MarI/O by Kevin Sun and Lior Vansteenskie
 -- The power up block of memory is 2 bits, which means it can hold 4 states.
 -- The power up data is located at 0x0019. The following are the values
 -- corresponding to the powerup that mario gets when these values are
@@ -60,7 +60,7 @@ BoxRadius = 6
 InputSize = (BoxRadius*2+1)*(BoxRadius*2+1)
 
 Inputs = InputSize+1
-Outputs = #ButtonNames
+Outputs = #ButtonNames * 2
 
 Population = 300
 DeltaDisjoint = 2.0
@@ -103,14 +103,11 @@ function getPositions()
 		screenY = memory.readbyte(0x03B8)
 	end
 end
---Gets whatever is in that tile.
+--Gets whatever is in that tile. Returns 1, -1, or 0
 function getTile(dx, dy)
 	if gameinfo.getromname() == "Super Mario World (USA)" then
 		x = math.floor((marioX+dx+8)/16)
 		y = math.floor((marioY+dy)/16)
-		--research what this memory byte is. most likely
-		--1 or 0, based on what the other branching
-		--code is.
 		return memory.readbyte(0x1C800 + math.floor(x/0x10)*0x1B0 + y*0x10 + x%0x10)
 	elseif gameinfo.getromname() == "Super Mario Bros." then
 		local x = marioX + dx + 8
@@ -132,7 +129,13 @@ function getTile(dx, dy)
 		end
 	end
 end
---Gets the 12 sprites that the SNES can hold.
+--Gets the 12 sprites that the SNES can hold, or 4 if we're on NES.
+--TODO: sprite_num will give the unique sprite id of that sprite.
+--      it is located at 0x009e. For example, the sprite_num for
+--      a mushroom is 0x74.
+--      This could mend the issue of what do we do when we see a
+--      mushroom but doesn ot fix the issue of extracting them from
+--      blocks, which we can't distinguish from tiles.
 function getSprites()
 	if gameinfo.getromname() == "Super Mario World (USA)" then
 		local sprites = {}
@@ -143,8 +146,11 @@ function getSprites()
 				spritey = memory.readbyte(0xD8+slot) + memory.readbyte(0x14D4+slot)*256
 				sprites[#sprites+1] = {["x"]=spritex, ["y"]=spritey}
 			end
-		end		
-		
+            statuses[#statuses + 1] = status
+		end
+        if pool.currentFrame % 5 == 0 then
+            --console.writeline(statuses)
+        end
 		return sprites
 	elseif gameinfo.getromname() == "Super Mario Bros." then
 		local sprites = {}
@@ -393,9 +399,14 @@ function evaluateNetwork(network, inputs)
 	end
     --stores the result of all the output nodes.
 	local outputs = {}
-	for o=1,Outputs do
+    local powerup = memory.readbyte(0x0019)
+    local offset = 0
+    if powerup > 0 then
+        offset = Outputs / 2
+    end
+	for o=1,#ButtonNames do
 		local button = "P1 " .. ButtonNames[o]
-		if network.neurons[MaxNodes+o].value > 0 then
+		if network.neurons[MaxNodes + o + offset].value > 0 then
 			outputs[button] = true
 		else
 			outputs[button] = false
@@ -986,7 +997,11 @@ function displayGenome(genome)
 		else
 			color = 0xFF000000
 		end
-		gui.drawText(223, 24+8*o, ButtonNames[o], color, 9)
+        local button = ButtonNames[o]
+        if o > #ButtonNames then
+            button = ButtonNames[o - #ButtonNames]
+        end
+		gui.drawText(223, 24+8*o, button, color, 9)
 	end
 	
 	for n,neuron in pairs(network.neurons) do
