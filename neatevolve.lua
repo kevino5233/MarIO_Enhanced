@@ -144,13 +144,9 @@ function getSprites()
 			if status ~= 0 then
 				spritex = memory.readbyte(0xE4+slot) + memory.readbyte(0x14E0+slot)*256
 				spritey = memory.readbyte(0xD8+slot) + memory.readbyte(0x14D4+slot)*256
-				sprites[#sprites+1] = {["x"]=spritex, ["y"]=spritey}
+				sprites[#sprites+1] = {["x"]=spritex, ["y"]=spritey, ["mushroom"] = memory.readbyte(0x009e + slot) == 0x74}
 			end
-            statuses[#statuses + 1] = status
 		end
-        if pool.currentFrame % 5 == 0 then
-            --console.writeline(statuses)
-        end
 		return sprites
 	elseif gameinfo.getromname() == "Super Mario Bros." then
 		local sprites = {}
@@ -209,7 +205,9 @@ function getInputs()
 			for i = 1,#sprites do
 				distx = math.abs(sprites[i]["x"] - (marioX+dx))
 				disty = math.abs(sprites[i]["y"] - (marioY+dy))
-				if distx <= 8 and disty <= 8 then
+                if sprites[i]["mushroom"] then
+                    inputs[#inputs] = 1
+                elseif distx <= 8 and disty <= 8 then
 					inputs[#inputs] = -1
 				end
 			end
@@ -965,10 +963,13 @@ function fitnessAlreadyMeasured()
 end
 --gui stuff
 function displayGenome(genome)
+    --get relevant data
 	local network = genome.network
 	local cells = {}
 	local i = 1
 	local cell = {}
+    --get value of the cell as well as the position, then add the cell to the
+    --list of cells
 	for dy=-BoxRadius,BoxRadius do
 		for dx=-BoxRadius,BoxRadius do
 			cell = {}
@@ -979,12 +980,15 @@ function displayGenome(genome)
 			i = i + 1
 		end
 	end
+    --gets bias cell
 	local biasCell = {}
 	biasCell.x = 80
 	biasCell.y = 110
 	biasCell.value = network.neurons[Inputs].value
 	cells[Inputs] = biasCell
-	
+    --For each output node, create another cell with the cell position and
+    --the value. Set the color to either blue for output is activated or
+    --black for output is not.
 	for o = 1,Outputs do
 		cell = {}
 		cell.x = 220
@@ -1003,7 +1007,7 @@ function displayGenome(genome)
         end
 		gui.drawText(223, 24+8*o, button, color, 9)
 	end
-	
+    --For add each neuron to the thing
 	for n,neuron in pairs(network.neurons) do
 		cell = {}
 		if n > Inputs and n <= MaxNodes then
@@ -1013,7 +1017,7 @@ function displayGenome(genome)
 			cells[n] = cell
 		end
 	end
-	
+    --set up stuff for line drawing
 	for n=1,4 do
 		for _,gene in pairs(genome.genes) do
 			if gene.enabled then
@@ -1050,21 +1054,26 @@ function displayGenome(genome)
 			end
 		end
 	end
-	
+    --draw map box
 	gui.drawBox(50-BoxRadius*5-3,70-BoxRadius*5-3,50+BoxRadius*5+2,70+BoxRadius*5+2,0xFF000000, 0x80808080)
+    --draw input and output cells
 	for n,cell in pairs(cells) do
 		if n > Inputs or cell.value ~= 0 then
-			local color = math.floor((cell.value+1)/2*256)
-			if color > 255 then color = 255 end
-			if color < 0 then color = 0 end
-			local opacity = 0xFF000000
-			if cell.value == 0 then
-				opacity = 0x50000000
-			end
-			color = opacity + color*0x10000 + color*0x100 + color
+            --initialize as white and transparent
+            opacity = 0x50000000
+            color = 0x00000000
+            --red if mushroom
+            --black if sprite
+            --white otherwise
+            if cell.value == 1 then
+                color = 0x00FF0000
+            elseif cell.value == 2 then
+                color = 0x00FFFFFF
+            end
 			gui.drawBox(cell.x-2,cell.y-2,cell.x+2,cell.y+2,opacity,color)
 		end
 	end
+    --draw lines now
 	for _,gene in pairs(genome.genes) do
 		if gene.enabled then
 			local c1 = cells[gene.into]
