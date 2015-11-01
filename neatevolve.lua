@@ -16,6 +16,10 @@ PowerUpType_Fire = 3
 
 PowerUpType_Curr = PowerUpType_Normal;
 
+function SetTestname(testname)
+    Testname = testname
+end
+
 function TogglePowerUp(PowerUpType)
 	PowerUpType_Curr = PowerUpType;
 end
@@ -43,6 +47,19 @@ elseif gameinfo.getromname() == "Super Mario Bros." then
 		"Right",
 	}
 end
+
+--initialize later. boolean array of all the sprites. True if the sprite is
+--an enemy. Goes from 0x00 to 0xFF (0-255)
+Sprites = {}
+--List of Sprites which we do not consider harmful.
+--make sure this list is sorted before initialization.
+GoodSprites = {0x0E, 0x21, 0x2C, 0x2D, 0x2F, 0x35, 0x3E, 0x41, 0x42, 0x43, 0x45,
+                0x47, 0x48, 0x49, 0x4A, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58,
+                0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 
+                0x64, 0x6A, 0x6B, 0x6C, 0x6D, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79,
+                0x7B, 0x7C, 0x7D, 0x80, 0x81, 0x83, 0x84, 0x87, 0x8A, 0x8B, 0xA3,
+                0xBA, 0xC0, 0xC1, 0xC4, 0xC7, 0xC8, 0xC9, 0xDA, 0xDB, 0xDC, 0xDD,
+                0xDF, 0xE0}
 
 --Turns graphics on or off
 function ToggleGraphics(GraphicsOn)
@@ -130,12 +147,6 @@ function getTile(dx, dy)
 	end
 end
 --Gets the 12 sprites that the SNES can hold, or 4 if we're on NES.
---TODO: sprite_num will give the unique sprite id of that sprite.
---      it is located at 0x009e. For example, the sprite_num for
---      a mushroom is 0x74.
---      This could mend the issue of what do we do when we see a
---      mushroom but doesn ot fix the issue of extracting them from
---      blocks, which we can't distinguish from tiles.
 function getSprites()
 	if gameinfo.getromname() == "Super Mario World (USA)" then
 		local sprites = {}
@@ -144,7 +155,7 @@ function getSprites()
 			if status ~= 0 then
 				spritex = memory.readbyte(0xE4+slot) + memory.readbyte(0x14E0+slot)*256
 				spritey = memory.readbyte(0xD8+slot) + memory.readbyte(0x14D4+slot)*256
-				sprites[#sprites+1] = {["x"]=spritex, ["y"]=spritey, ["mushroom"] = memory.readbyte(0x009e + slot) == 0x74}
+				sprites[#sprites+1] = {["x"]=spritex, ["y"]=spritey, ["good"]=(Sprites[memory.readbyte(0x009e + slot) - 1])}
 			end
 		end
 		return sprites
@@ -172,7 +183,7 @@ function getExtendedSprites()
 			if number ~= 0 then
 				spritex = memory.readbyte(0x171F+slot) + memory.readbyte(0x1733+slot)*256
 				spritey = memory.readbyte(0x1715+slot) + memory.readbyte(0x1729+slot)*256
-				extended[#extended+1] = {["x"]=spritex, ["y"]=spritey}
+				extended[#extended+1] = {["x"]=spritex, ["y"]=spritey, ["good"] = Sprites[memory.readbyte(0x009e + slot) - 1]}
 			end
 		end		
 		
@@ -205,26 +216,29 @@ function getInputs()
 			for i = 1,#sprites do
 				distx = math.abs(sprites[i]["x"] - (marioX+dx))
 				disty = math.abs(sprites[i]["y"] - (marioY+dy))
-                if sprites[i]["mushroom"] then
-                    inputs[#inputs] = 1
-                elseif distx <= 8 and disty <= 8 then
-					inputs[#inputs] = -1
+                if distx <= 8 and disty <= 8 then
+                    if sprites[i]["good"] == 1 then
+                        inputs[#inputs] = 2
+                    else
+                        inputs[#inputs] = -1
+                    end
 				end
 			end
 
 			for i = 1,#extended do
 				distx = math.abs(extended[i]["x"] - (marioX+dx))
 				disty = math.abs(extended[i]["y"] - (marioY+dy))
-				if distx < 8 and disty < 8 then
-					inputs[#inputs] = -1
+                if distx < 8 and disty < 8 then
+                    if extended[i]["good"] == 1 then
+                        inputs[#inputs] = 2
+                    else
+                        inputs[#inputs] = -1
+                    end
 				end
 			end
 		end
 	end
-	
-	--mariovx = memory.read_s8(0x7B)
-	--mariovy = memory.read_s8(0x7D)
-	
+
 	return inputs
 end
 --normal sigmoid implementation
@@ -846,7 +860,7 @@ function addToSpecies(child)
 	end
 end
 --Begins selection process for what species to remove and creation of new
---genoms for the next generation.
+--genomes for the next generation.
 function newGeneration()
     --gets top half of species
 	cullSpecies(false)
@@ -884,7 +898,12 @@ function newGeneration()
     --increment generation
 	pool.generation = pool.generation + 1
     --save data
-	writeFile("backup." .. pool.generation .. "." .. forms.gettext(saveLoadFile))
+    if Testname == nil then
+        writeFile("backup." .. pool.generation .. "." .. forms.gettext(saveLoadFile))
+    else
+        writeFile(Testname)
+        writeData(Testname)
+    end
 end
 --creates a new pool for testing and creates a population of the same species
 function initializePool()
@@ -1059,16 +1078,14 @@ function displayGenome(genome)
     --draw input and output cells
 	for n,cell in pairs(cells) do
 		if n > Inputs or cell.value ~= 0 then
-            --initialize as white and transparent
-            opacity = 0x50000000
-            color = 0x00000000
-            --red if mushroom
+            --initialize as white and opaque
+            local opacity = 0xFF000000
+            local color = 0xFFFFFFFF
+            --red if mushroom. not possible with current network implementation.
             --black if sprite
             --white otherwise
-            if cell.value == 1 then
-                color = 0x00FF0000
-            elseif cell.value == 2 then
-                color = 0x00FFFFFF
+            if cell.value < 0 then
+                color = 0xFF000000
             end
 			gui.drawBox(cell.x-2,cell.y-2,cell.x+2,cell.y+2,opacity,color)
 		end
@@ -1105,47 +1122,66 @@ function displayGenome(genome)
 end
 
 function writeFile(filename)
-        local file = io.open(filename, "w")
+    local file = io.open(filename, "w")
 	file:write(pool.generation .. "\n")
 	file:write(pool.maxFitness .. "\n")
 	file:write(#pool.species .. "\n")
-        for n,species in pairs(pool.species) do
-		file:write(species.topFitness .. "\n")
-		file:write(species.staleness .. "\n")
-		file:write(#species.genomes .. "\n")
-		for m,genome in pairs(species.genomes) do
-			file:write(genome.fitness .. "\n")
-			file:write(genome.maxneuron .. "\n")
-			for mutation,rate in pairs(genome.mutationRates) do
-				file:write(mutation .. "\n")
-				file:write(rate .. "\n")
-			end
-			file:write("done\n")
-			
-			file:write(#genome.genes .. "\n")
-			for l,gene in pairs(genome.genes) do
-				file:write(gene.into .. " ")
-				file:write(gene.out .. " ")
-				file:write(gene.weight .. " ")
-				file:write(gene.innovation .. " ")
-				if(gene.enabled) then
-					file:write("1\n")
-				else
-					file:write("0\n")
-				end
-			end
-		end
+    for n,species in pairs(pool.species) do
+        file:write(species.topFitness .. "\n")
+        file:write(species.staleness .. "\n")
+        file:write(#species.genomes .. "\n")
+        for m,genome in pairs(species.genomes) do
+            file:write(genome.fitness .. "\n")
+            file:write(genome.maxneuron .. "\n")
+            for mutation,rate in pairs(genome.mutationRates) do
+                file:write(mutation .. "\n")
+                file:write(rate .. "\n")
+            end
+            file:write("done\n")
+            
+            file:write(#genome.genes .. "\n")
+            for l,gene in pairs(genome.genes) do
+                file:write(gene.into .. " ")
+                file:write(gene.out .. " ")
+                file:write(gene.weight .. " ")
+                file:write(gene.innovation .. " ")
+                if(gene.enabled) then
+                    file:write("1\n")
+                else
+                    file:write("0\n")
+                end
+            end
         end
-        file:close()
+    end
+    file:close()
+end
+
+function writeData(filename)
+    local file = io.open(filename .. ".data", "w")
+    file:write(pool.generation .. "\n")
+    file:write(pool.maxFitness .. "\n")
+    local totalfitness = 0
+    local numgenes = 0
+    for n,species in pairs(pool.species) do
+        for m,genome in pairs(species.genomes) do
+            totalfitness = totalfitness + genome.fitness
+            numgenes = numgenes + 1
+        end
+    end
+    local avgfitness = totalfitness / numgenes
+    file:write(avgfitness .. "\n")
+    file:close()
 end
 
 function savePool()
 	local filename = forms.gettext(saveLoadFile)
+    Testname = filename
 	writeFile(filename)
 end
 
 function loadFile(filename)
         local file = io.open(filename, "r")
+    Testname = filename
 	pool = newPool()
 	pool.generation = file:read("*number")
 	pool.maxFitness = file:read("*number")
@@ -1222,6 +1258,19 @@ function onExit()
 	forms.destroy(form)
 end
 
+function InitSpriteList()
+    local k = 1
+    for i=1, 256 do
+        local isGood = (k <= #GoodSprites) and (GoodSprites[k] == i - 1)
+        if isGood then
+            k = k + 1
+            Sprites[#Sprites + 1] = 1
+        else
+            Sprites[#Sprites + 1] = 0
+        end
+    end
+end
+
 writeFile("temp.pool")
 
 event.onexit(onExit)
@@ -1238,6 +1287,7 @@ saveLoadLabel = forms.label(form, "Save/Load:", 5, 129)
 playTopButton = forms.button(form, "Play Top", playTop, 5, 170)
 hideBanner = forms.checkbox(form, "Hide Banner", 5, 190)
 
+InitSpriteList()
 
 while true do
 	local backgroundColor = 0xD0FFFFFF
@@ -1269,7 +1319,7 @@ while true do
 
 	local timeoutBonus = pool.currentFrame / 4
 	if timeout + timeoutBonus <= 0 then
-		local fitness = rightmost / (pool.currentFrame)
+		local fitness = rightmost / (pool.currentFrame) + rightmost
 		if gameinfo.getromname() == "Super Mario World (USA)" and rightmost > 4816 then
 			fitness = fitness + 1000
 		end
