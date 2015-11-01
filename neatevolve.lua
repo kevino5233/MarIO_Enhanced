@@ -1157,7 +1157,7 @@ function writeFile(filename)
 end
 
 function writeData(filename)
-    local file = io.open(filename .. ".data", "w")
+    local file = io.open(filename .. "." .. pool.generation .. "data", "w")
     file:write(pool.generation .. "\n")
     file:write(pool.maxFitness .. "\n")
     local totalfitness = 0
