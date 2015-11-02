@@ -12,8 +12,9 @@ def main():
     args = parser.parse_args()
     files = [f for f in listdir(args.dir) if isfile(join(args.dir, f))]
     files = [f for f in files if args.testname in f and "data" in f]
+    data = dict()
     for file_ in files:
-        f = open(args.dir + file_)
+        f = open(join(args.dir, file_))
         g = int(f.readline())
         m = float(f.readline())
         a = float(f.readline())

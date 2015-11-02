@@ -218,7 +218,7 @@ function getInputs()
 				disty = math.abs(sprites[i]["y"] - (marioY+dy))
                 if distx <= 8 and disty <= 8 then
                     if sprites[i]["good"] == 1 then
-                        inputs[#inputs] = 2
+                        inputs[#inputs] = -1
                     else
                         inputs[#inputs] = -1
                     end
@@ -230,7 +230,7 @@ function getInputs()
 				disty = math.abs(extended[i]["y"] - (marioY+dy))
                 if distx < 8 and disty < 8 then
                     if extended[i]["good"] == 1 then
-                        inputs[#inputs] = 2
+                        inputs[#inputs] = -1
                     else
                         inputs[#inputs] = -1
                     end

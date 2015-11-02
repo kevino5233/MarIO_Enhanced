@@ -77,7 +77,7 @@ BoxRadius = 6
 InputSize = (BoxRadius*2+1)*(BoxRadius*2+1)
 
 Inputs = InputSize+1
-Outputs = #ButtonNames * 2
+Outputs = #ButtonNames
 
 Population = 300
 DeltaDisjoint = 2.0
@@ -217,11 +217,7 @@ function getInputs()
 				distx = math.abs(sprites[i]["x"] - (marioX+dx))
 				disty = math.abs(sprites[i]["y"] - (marioY+dy))
                 if distx <= 8 and disty <= 8 then
-                    if sprites[i]["good"] == 1 then
-                        inputs[#inputs] = 2
-                    else
-                        inputs[#inputs] = -1
-                    end
+                    inputs[#inputs] = -1
 				end
 			end
 
@@ -229,11 +225,7 @@ function getInputs()
 				distx = math.abs(extended[i]["x"] - (marioX+dx))
 				disty = math.abs(extended[i]["y"] - (marioY+dy))
                 if distx < 8 and disty < 8 then
-                    if extended[i]["good"] == 1 then
-                        inputs[#inputs] = 2
-                    else
-                        inputs[#inputs] = -1
-                    end
+                    inputs[#inputs] = -1
 				end
 			end
 		end
@@ -412,13 +404,9 @@ function evaluateNetwork(network, inputs)
     --stores the result of all the output nodes.
 	local outputs = {}
     local powerup = memory.readbyte(0x0019)
-    local offset = 0
-    if powerup > 0 then
-        offset = Outputs / 2
-    end
 	for o=1,#ButtonNames do
 		local button = "P1 " .. ButtonNames[o]
-		if network.neurons[MaxNodes + o + offset].value > 0 then
+		if network.neurons[MaxNodes + o].value > 0 then
 			outputs[button] = true
 		else
 			outputs[button] = false
