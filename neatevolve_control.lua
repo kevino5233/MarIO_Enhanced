@@ -1326,6 +1326,7 @@ while true do
 		end
         if Testname ~= nil then
             writeData(Testname)
+		end
 		
 		console.writeline("Gen " .. pool.generation .. " species " .. pool.currentSpecies .. " genome " .. pool.currentGenome .. " fitness: " .. fitness)
 		pool.currentSpecies = 1
