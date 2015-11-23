@@ -53,13 +53,14 @@ end
 Sprites = {}
 --List of Sprites which we do not consider harmful.
 --make sure this list is sorted before initialization.
-GoodSprites = {0x0E, 0x21, 0x2C, 0x2D, 0x2F, 0x35, 0x3E, 0x41, 0x42, 0x43, 0x45,
-                0x47, 0x48, 0x49, 0x4A, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58,
-                0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 
-                0x64, 0x6A, 0x6B, 0x6C, 0x6D, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79,
-                0x7B, 0x7C, 0x7D, 0x80, 0x81, 0x83, 0x84, 0x87, 0x8A, 0x8B, 0xA3,
-                0xBA, 0xC0, 0xC1, 0xC4, 0xC7, 0xC8, 0xC9, 0xDA, 0xDB, 0xDC, 0xDD,
-                0xDF, 0xE0}
+NeutralSprites = {0x0E, 0x21, 0x2C, 0x2D, 0x2F, 0x35, 0x3E, 0x41, 0x42, 0x43,
+                0x45, 0x47, 0x48, 0x49, 0x4A, 0x52, 0x53, 0x54, 0x55, 0x56,
+                0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0x60,
+                0x61, 0x62, 0x63, 0x64, 0x6A, 0x6B, 0x6C, 0x6D, 0x79, 0x7C,
+                0x7D, 0x80, 0x81, 0x87, 0x8A, 0x8B, 0xA3, 0xBA, 0xC0, 0xC4,
+                0xC8, 0xC9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDF, 0xE0}
+
+GoodSprites = {0x74, 0x75, 0x76, 0x77, 0x78, 0x7B, 0x83, 0x84, 0xC1, 0xC7}
 
 --Turns graphics on or off
 function ToggleGraphics(GraphicsOn)
@@ -153,9 +154,18 @@ function getSprites()
 		for slot=0,11 do
 			local status = memory.readbyte(0x14C8+slot)
 			if status ~= 0 then
-				spritex = memory.readbyte(0xE4+slot) + memory.readbyte(0x14E0+slot)*256
-				spritey = memory.readbyte(0xD8+slot) + memory.readbyte(0x14D4+slot)*256
-				sprites[#sprites+1] = {["x"]=spritex, ["y"]=spritey, ["good"]=(Sprites[memory.readbyte(0x009e + slot) - 1])}
+				spritex =
+                    memory.readbyte(0xE4+slot) +
+                    memory.readbyte(0x14E0+slot)*256
+				spritey =
+                    memory.readbyte(0xD8+slot) +
+                    memory.readbyte(0x14D4+slot)*256
+				sprites[#sprites+1] =
+                    {
+                        ["x"] = spritex,
+                        ["y"] = spritey,
+                        ["good"] = Sprites[memory.readbyte(0x009e + slot)]
+                    }
 			end
 		end
 		return sprites
@@ -164,8 +174,11 @@ function getSprites()
 		for slot=0,4 do
 			local enemy = memory.readbyte(0xF+slot)
 			if enemy ~= 0 then
-				local ex = memory.readbyte(0x6E + slot)*0x100 + memory.readbyte(0x87+slot)
-				local ey = memory.readbyte(0xCF + slot)+24
+				local ex =
+                    memory.readbyte(0x6E + slot)*0x100 +
+                    memory.readbyte(0x87+slot)
+				local ey =
+                    memory.readbyte(0xCF + slot) + 24
 				sprites[#sprites+1] = {["x"]=ex,["y"]=ey}
 			end
 		end
@@ -181,9 +194,18 @@ function getExtendedSprites()
 		for slot=0,11 do
 			local number = memory.readbyte(0x170B+slot)
 			if number ~= 0 then
-				spritex = memory.readbyte(0x171F+slot) + memory.readbyte(0x1733+slot)*256
-				spritey = memory.readbyte(0x1715+slot) + memory.readbyte(0x1729+slot)*256
-				extended[#extended+1] = {["x"]=spritex, ["y"]=spritey, ["good"] = Sprites[memory.readbyte(0x009e + slot) - 1]}
+				spritex =
+                    memory.readbyte(0x171F+slot) +
+                    memory.readbyte(0x1733+slot) * 256
+				spritey =
+                    memory.readbyte(0x1715+slot) +
+                    memory.readbyte(0x1729+slot)*256
+				extended[#extended+1] =
+                {
+                    ["x"] = spritex,
+                    ["y"] = spritey,
+                    ["good"]  =  Sprites[memory.readbyte(0x009e + slot) - 1]
+                }
 			end
 		end		
 		
@@ -217,11 +239,7 @@ function getInputs()
 				distx = math.abs(sprites[i]["x"] - (marioX+dx))
 				disty = math.abs(sprites[i]["y"] - (marioY+dy))
                 if distx <= 8 and disty <= 8 then
-                    if sprites[i]["good"] == 1 then
-                        inputs[#inputs] = 2
-                    else
-                        inputs[#inputs] = -1
-                    end
+                    inputs[#inputs] = sprites[i]["good"]
 				end
 			end
 
@@ -229,11 +247,7 @@ function getInputs()
 				distx = math.abs(extended[i]["x"] - (marioX+dx))
 				disty = math.abs(extended[i]["y"] - (marioY+dy))
                 if distx < 8 and disty < 8 then
-                    if extended[i]["good"] == 1 then
-                        inputs[#inputs] = 2
-                    else
-                        inputs[#inputs] = -1
-                    end
+                    inputs[#inputs] = extended[i]["good"]
 				end
 			end
 		end
@@ -1260,13 +1274,18 @@ end
 
 function InitSpriteList()
     local k = 1
+    local j = 1
     for i=1, 256 do
         local isGood = (k <= #GoodSprites) and (GoodSprites[k] == i - 1)
+        local isNeutral = (j <= #NeutralSprites) and (NeutralSprites[j] == i - 1)
         if isGood then
             k = k + 1
             Sprites[#Sprites + 1] = 1
-        else
+        elseif isNeutral then
+            j = j + 1
             Sprites[#Sprites + 1] = 0
+        else
+            Sprites[#Sprites + 1] = -1
         end
     end
 end
@@ -1319,7 +1338,7 @@ while true do
 
 	local timeoutBonus = pool.currentFrame / 4
 	if timeout + timeoutBonus <= 0 then
-		local fitness = rightmost
+		local fitness = rightmost + pool.currentFrame / rightmost
 		if gameinfo.getromname() == "Super Mario World (USA)" and rightmost > 4816 then
 			fitness = fitness + 1000
 		end
@@ -1339,7 +1358,6 @@ while true do
         if Testname ~= nil then
             writeData(Testname)
 		end
-		
 		console.writeline("Gen " .. pool.generation .. " species " .. pool.currentSpecies .. " genome " .. pool.currentGenome .. " fitness: " .. fitness)
 		pool.currentSpecies = 1
 		pool.currentGenome = 1
