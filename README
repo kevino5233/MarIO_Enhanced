@@ -1,3 +1,17 @@
-WHEN RUNNING TEST1, SET GOOD SPRITES TO 2
-WHEN RUNNING TEST, SET GOOD SPRITES TO -1
-MAKE A CONTROL TEST
+HOW TO TEST
+
+Pre-reqs
+Bizhawk Emulator tasvideos.org/Bizhawk.html
+Super Mario World SNES ROM
+
+1. Open the Super Mario World ROM in Bizhawk
+2. Open the BizHawk Lua Console Tools->Lua Console
+3. Find where you cloned this repository
+	* If you want to test the control, open neatevolve_control.lua
+	* Otherwise if you want to test multi modal, open neatevolve_mm.lua
+4. Before running, give the test an apt name in the Lua Console SetTestname("testname")
+	* I reccomend using SetTestname("control") for the control and SetTestname("mm") for the multi modal.
+	* If you plan on having multiple runs, then name your runs accordingly "control1", "control2", etc.
+5. It should take about 24 hours to evolve around 40 generations.
+6. Once you finish that, then run the python program MarIOPlotter. Run "python MarIOPlotter.py -h" for more information on how to run them.
+7. When you're done testing make sure you save your program using the pop up menu, should be the same as the testname.
