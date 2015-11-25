@@ -155,7 +155,7 @@ function getSprites()
 			if status ~= 0 then
 				spritex = memory.readbyte(0xE4+slot) + memory.readbyte(0x14E0+slot)*256
 				spritey = memory.readbyte(0xD8+slot) + memory.readbyte(0x14D4+slot)*256
-				sprites[#sprites+1] = {["x"]=spritex, ["y"]=spritey, ["good"]=(Sprites[memory.readbyte(0x009e + slot) - 1])}
+				sprites[#sprites+1] = {["x"]=spritex, ["y"]=spritey, ["good"]=(Sprites[memory.readbyte(0x009e + slot) + 1])}
 			end
 		end
 		return sprites
@@ -183,7 +183,7 @@ function getExtendedSprites()
 			if number ~= 0 then
 				spritex = memory.readbyte(0x171F+slot) + memory.readbyte(0x1733+slot)*256
 				spritey = memory.readbyte(0x1715+slot) + memory.readbyte(0x1729+slot)*256
-				extended[#extended+1] = {["x"]=spritex, ["y"]=spritey, ["good"] = Sprites[memory.readbyte(0x009e + slot) - 1]}
+				extended[#extended+1] = {["x"]=spritex, ["y"]=spritey, ["good"] = Sprites[memory.readbyte(0x009e + slot) + 1]}
 			end
 		end		
 		
@@ -207,7 +207,6 @@ function getInputs()
 	for dy=-BoxRadius*16,BoxRadius*16,16 do
 		for dx=-BoxRadius*16,BoxRadius*16,16 do
 			inputs[#inputs+1] = 0
-			
 			tile = getTile(dx, dy)
 			if tile == 1 and marioY+dy < 0x1B0 then
 				inputs[#inputs] = 1

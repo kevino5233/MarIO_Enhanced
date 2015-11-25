@@ -164,7 +164,7 @@ function getSprites()
                     {
                         ["x"] = spritex,
                         ["y"] = spritey,
-                        ["good"] = Sprites[memory.readbyte(0x009e + slot)]
+                        ["good"] = Sprites[memory.readbyte(0x009e + slot) + 1]
                     }
 			end
 		end
@@ -204,11 +204,10 @@ function getExtendedSprites()
                 {
                     ["x"] = spritex,
                     ["y"] = spritey,
-                    ["good"]  =  Sprites[memory.readbyte(0x009e + slot) - 1]
+                    ["good"]  =  Sprites[memory.readbyte(0x009e + slot) + 1]
                 }
 			end
-		end		
-		
+		end	
 		return extended
 	elseif gameinfo.getromname() == "Super Mario Bros." then
 		return {}
